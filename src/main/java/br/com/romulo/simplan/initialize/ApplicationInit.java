@@ -1,7 +1,7 @@
 package br.com.romulo.simplan.initialize;
 
-import br.com.romulo.simplan.domain.Adesao;
-import br.com.romulo.simplan.service.adesao.AdesaoService;
+import br.com.romulo.simplan.domain.Tarefa;
+import br.com.romulo.simplan.service.tarefa.TarefaService;
 import br.com.romulo.simplan.service.io.file.ManipuladorArquivoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,17 +16,16 @@ import java.util.List;
 public class ApplicationInit implements ApplicationListener<ContextRefreshedEvent> {
 
     @Autowired ManipuladorArquivoService manipuladorArquivoService;
-    @Autowired AdesaoService adesaoService;
+    @Autowired TarefaService tarefaService;
 
     //arquivo csv para analise
-    private final String PATH_CSV_FILE = "src/main/resources/retroativos_quitacao.csv";
+    private final String PATH_CSV_FILE = "src/main/resources/arquivo_para_analise.csv";
 
     //arquivos de saida / escrita
-    private final String UPDATE_RETROATIVOS_QUITACAO_FILE = "src/main/resources/updates_retroativos_quitacao.sql";
-    private final String ROLLBACK_UPDATE_RETROATIVOS_QUITACAO_FILE = "src/main/resources/rollback_updates_retroativos_quitacao.sql";
-    private final String INSERT_OCORRENCIAS_QUITACAO_FILE = "src/main/resources/insert_ocorrencias_quitacao.sql";
-    private final String ROLLBACK_INSERTS_OCORRENCIAS_QUITACAO_FILE = "src/main/resources/rollback_inserts_ocorrencias_quitacao.sql";
-    private final String ANALISE_EXISTENCIA_ADESAO_SEGURADORA_FILE = "src/main/resources/quitacoes_codigos_portadores_null.csv";
+    private final String UPDATE_TAREFAS_FILE = "src/main/resources/updates_tarefa.sql";
+    private final String ROLLBACK_UPDATE_TAREFAS_FILE = "src/main/resources/rollback_updates_tarefas.sql";
+    private final String INSERT_OCORRENCIAS_TAREFAS_FILE = "src/main/resources/insert_ocorrencias_tarefas.sql";
+    private final String ROLLBACK_INSERTS_OCORRENCIAS_TAREFAS_FILE = "src/main/resources/rollback_inserts_ocorrencias_tarefa.sql";
 
     @Override
     public void onApplicationEvent(ContextRefreshedEvent contextRefreshedEvent) {
@@ -43,82 +42,47 @@ public class ApplicationInit implements ApplicationListener<ContextRefreshedEven
             /**
              * Exemplo de procedimento abaixo
              */
-            String codigoAdesao = linha[0];
-            String codigoSeguro = linha[1];
-            String dataQuitacao = formatarData(linha[2]);
+            String campo01 = linha[0];
+            String campo02 = linha[1];
+            String campo03 = formatarData(linha[2]);
 
-            Adesao adesao = adesaoService.buscarAdesaoPorCodigoAdesao(codigoAdesao);
-            String codigoPortador = adesao.getCodigoPortador();
+            Tarefa tarefa = tarefaService.buscarTarefaPorDescricao(campo01);
+            Long tarefaId = tarefa.getId();
 
-            //Monta arquivo sql com scripts de update e rollback para quitação de adesoes
-            gerarUpdatesQuitacao(UPDATE_RETROATIVOS_QUITACAO_FILE, codigoAdesao, codigoSeguro, dataQuitacao);
-            gerarRollbackUpdatesQuitacao(ROLLBACK_UPDATE_RETROATIVOS_QUITACAO_FILE, codigoAdesao, codigoSeguro);
+            //Monta arquivo sql com scripts de update e rollback para tarefas
+            gerarUpdatesTarefas(UPDATE_TAREFAS_FILE, campo01, campo02);
+            gerarRollbackUpdatesTarefas(ROLLBACK_UPDATE_TAREFAS_FILE, campo01, campo03);
 
-            //Montar arquivo sql com scripts de insert e rollback de ocorrencias para as quitação de adesoes
-            gerarInsertsOcorrenciasQuitacao(INSERT_OCORRENCIAS_QUITACAO_FILE, codigoAdesao, dataQuitacao, codigoPortador);
-            gerarRollbackInsertsOcorrenciasQuitacao(ROLLBACK_INSERTS_OCORRENCIAS_QUITACAO_FILE, codigoAdesao, dataQuitacao, codigoPortador);
-
-            //Monta arquivo no formato CSV com as adesoes que nao existem do lado da seguradora
-            analisadorExistenciaAdesaoSeguradora(ANALISE_EXISTENCIA_ADESAO_SEGURADORA_FILE, linha);
+            //Montar arquivo sql com scripts de insert e rollback de ocorrencias para as tarefas
+            gerarInsertsOcorrenciasTarefas(INSERT_OCORRENCIAS_TAREFAS_FILE, campo01, campo02, campo03);
+            gerarRollbackInsertsOcorrenciasTarefas(ROLLBACK_INSERTS_OCORRENCIAS_TAREFAS_FILE, tarefaId, campo02);
         });
     }
 
-    private void analisadorExistenciaAdesaoSeguradora(String pathFileOutput, String[] data) {
-        String codigoAdesao = data[0];
-        String codigoSeguro = data[1];
-        String dataQuitacao = data[2];
-
-        Adesao adesao = adesaoService.buscarAdesaoPorCodigoAdesao(codigoAdesao);
-
-        if (adesao.getCodigoAdesao() == null) {
-            String csv = codigoAdesao.concat(";").concat(codigoSeguro).concat(";").concat(formatarData(dataQuitacao));
-            manipuladorArquivoService.escreverConteudoArquivo(pathFileOutput, csv);
-        }
-    }
-
-    private void gerarUpdatesQuitacao(String pathFileOutput, String codigoAdesao, String codigoSeguro, String dataQuitacao) {
+    private void gerarUpdatesTarefas(String pathFileOutput, String ...parametros) {
         StringBuilder sql = new StringBuilder();
-        sql.append("UPDATE t_adesao ");
-        sql.append("SET status = 'QUITADO', ");
-        sql.append(String.format("cancelamento = TIMESTAMP '%s 00:00:00.000000', ", dataQuitacao));
-        sql.append("meio_cancelamento = 'MIGRACAO' ");
-        sql.append(String.format("WHERE codigo_adesao = '%s' ", codigoAdesao));
-        sql.append(String.format("AND codigo_seguro = '%s';", codigoSeguro));
+        sql.append("script sql aqui");
 
         manipuladorArquivoService.escreverConteudoArquivo(pathFileOutput, sql.toString());
     }
 
-    private void gerarRollbackUpdatesQuitacao(String pathFileOutput, String codigoAdesao, String codigoSeguro) {
+    private void gerarRollbackUpdatesTarefas(String pathFileOutput, String ...parametros) {
         StringBuilder sql = new StringBuilder();
-        sql.append("UPDATE t_adesao ");
-        sql.append("SET status = 'ATIVO', ");
-        sql.append("cancelamento = null, ");
-        sql.append("meio_cancelamento = null ");
-        sql.append(String.format("WHERE codigo_adesao = '%s' ", codigoAdesao));
-        sql.append(String.format("AND codigo_seguro = '%s';", codigoSeguro));
+        sql.append("script sql aqui");
 
         manipuladorArquivoService.escreverConteudoArquivo(pathFileOutput, sql.toString());
     }
 
-    private void gerarInsertsOcorrenciasQuitacao(String pathFileOutput, String codigoAdesao, String dataQuitacao, String codigoPortador) {
+    private void gerarInsertsOcorrenciasTarefas(String pathFileOutput, String ...parametros) {
         StringBuilder sql = new StringBuilder();
-        sql.append("INSERT INTO T_OCORRENCIA ");
-        sql.append("(IDOCORRENCIA, DATA, DESCRICAO, IDUSUARIO, IDCLIENTECOBRANCA, IDTIPOOCORRENCIA, ALERTADATA, ");
-        sql.append("ALERTASTATUS, ALERTAATIVO, STATUS, IDUSUARIOCANCELAMENTO, DATACANCELAMENTO, DATAPREVISTAPAGAMENTO, ");
-        sql.append("IDCLIENTETITULARPESSOAFISICA, IDUSUARIOCONCLUSAOAGENDAMENTO, DATACONCLUSAOAGENDAMENTO, ");
-        sql.append("IDATENDIMENTOCLIENTE, VERSION, IDORIGEM, IDORIGEMALTERACAO, CODIGOEXTERNO)");
-        sql.append(String.format("VALUES (S_OCORRENCIA.NEXTVAL,TIMESTAMP '%s 00:00:00.000000',", dataQuitacao));
-        sql.append(String.format("'[SEGURO BACKSEG] QUITAÇÃO DE SEGURO: %s - COMPRA DA SORTE',-5,NULL,", codigoAdesao));
-        sql.append(String.format("-5,NULL,'N','N','A',NULL,NULL,NULL,%s,NULL,NULL,NULL,NULL,0,0,NULL);", codigoPortador));
+        sql.append("script sql aqui");
 
         manipuladorArquivoService.escreverConteudoArquivo(pathFileOutput, sql.toString());
     }
 
-    private void gerarRollbackInsertsOcorrenciasQuitacao(String pathFileOutput, String codigoAdesao, String dataQuitacao, String codigoPortador) {
+    private void gerarRollbackInsertsOcorrenciasTarefas(String pathFileOutput, Long tarefaId, String ...parametros) {
         StringBuilder sql = new StringBuilder();
-        sql.append(String.format("DELETE FROM T_OCORRENCIA WHERE DATA = TIMESTAMP '%s 00:00:00.000000' ", dataQuitacao));
-        sql.append(String.format("AND DESCRICAO = '[SEGURO BACKSEG] QUITAÇÃO DE SEGURO: %s - COMPRA DA SORTE' ", codigoAdesao));
-        sql.append(String.format("AND IDCLIENTETITULARPESSOAFISICA = %s;", codigoPortador));
+        sql.append("script sql aqui");
 
         manipuladorArquivoService.escreverConteudoArquivo(pathFileOutput, sql.toString());
     }

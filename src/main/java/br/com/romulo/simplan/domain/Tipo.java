@@ -1,6 +1,6 @@
 package br.com.romulo.simplan.domain;
 
-public enum Status {
+public enum Tipo {
 
     ATIVO("ATIVO"),
     CANCELADO("CANCELADO"),
@@ -9,7 +9,7 @@ public enum Status {
 
     private final String label;
 
-    Status(String label) {
+    Tipo(String label) {
         this.label = label;
     }
 
